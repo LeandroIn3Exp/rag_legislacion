@@ -15,6 +15,8 @@ import time
 from .config import PINECONE_API_KEY, PINECONE_INDEX_NAME
 from .utils.normalize_filename import normalize_filename
 from .multi_representation import generate_summary
+from langchain_experimental.text_splitter import SemanticChunker
+from langchain_openai.embeddings import OpenAIEmbeddings
 
 # Cargar variables de entorno
 load_dotenv()
@@ -137,70 +139,85 @@ def load_new_documents(directory_path, doc_type, existing_files):
     
     return new_documents
 
-def split_documents(documents: list[Document]):
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=2000,
-        chunk_overlap=200,
-        length_function=len,
-        separators=["\n\n", "\n", ".", "?", "!", " ", ""] 
+def split_documents(documents: list):
+    """
+    Utiliza SemanticChunker para generar chunks semánticos a partir del contenido
+    de cada documento, manteniendo el metadata original en cada chunk.
+    """
+    embedding_model = OpenAIEmbeddings(model="text-embedding-3-large")
+    # Instanciar SemanticChunker con OpenAIEmbeddings y un umbral basado en percentiles
+    text_splitter = SemanticChunker(
+        embedding_model,
+        breakpoint_threshold_type="percentile"  # O "standard_deviation", "interquartile" según convenga
     )
-    chunks = text_splitter.split_documents(documents)
+    
+    chunks = []
+    for doc in documents:
+        # Se asume que cada 'doc' tiene el atributo 'page_content'
+        doc_chunks = text_splitter.create_documents([doc.page_content])
+        # Copiar el metadata original a cada chunk generado
+        for chunk in doc_chunks:
+            chunk.metadata = doc.metadata.copy()
+        chunks.extend(doc_chunks)
+    
     print(f"Total de chunks generados: {len(chunks)}")
     return chunks
 
-def add_to_pinecone(chunks: list[Document], index_name: str, pc: Pinecone):
-    embedding_function = get_embedding_function()
-    
-    # Añadir fecha de creación y generar ID apropiado para cada chunk
+def add_to_pinecone(chunks: list, index_name: str, pc):
+    """
+    Para cada chunk se:
+      - Genera un ID único basado en metadatos (doc_type, filename, page y un UUID corto).
+      - Añade la fecha de creación.
+      - Construye un contexto completo que incluye metadatos y el contenido original.
+      - Asigna este contexto al campo "text", que se utilizará para los embeddings y búsquedas.
+      
+    Nota: Anteriormente se usaba una función generate_summary para generar una versión
+    optimizada (multi-representation) del texto. Esa parte se comenta a continuación para referencia,
+    pero ahora se utiliza directamente el full_text.
+    """
+    embedding_function = get_embedding_function()  # Función para obtener la función de embedding
     timestamp = datetime.now().isoformat()
     
     for chunk in chunks:
-        # Obtener metadatos necesarios
+        # Extraer metadatos necesarios
         source = chunk.metadata.get("filename", "unknown")
         page = chunk.metadata.get("page_label", "0")
         doc_type = chunk.metadata.get("doc_type", "unknown")
         unique_id = str(uuid.uuid4())[:8]
         
-        # Asegurar que los componentes del ID sean ASCII
+        # Asegurar que los componentes del ID sean ASCII (asumiendo que tienes definida la función to_ascii_id)
         ascii_doc_type = to_ascii_id(doc_type)
         ascii_source = to_ascii_id(source)
         
-        # Generar ID que será usado como ID primario en Pinecone (solo ASCII)
+        # Generar un ID único para el chunk
         chunk_id = f"{ascii_doc_type}:{ascii_source}:{page}:{unique_id}"
-        
-        # Establecer el ID tanto en el metadato como para el vector
         chunk.metadata["id"] = chunk_id
         
-        # Añadir fecha de creación
+        # Añadir fecha de creación y guardar el nombre de archivo original
         chunk.metadata["created_at"] = timestamp
-        
-        # Guardar los valores originales en los metadatos para búsquedas
         chunk.metadata["original_filename"] = source
         
-        # Generar el contexto completo (que incluye metadatos y contenido original)
+        # Generar el contexto completo que incluye metadatos y contenido
         full_text = f"Tipo: {doc_type}. Archivo: {source}. Página: {page}. {chunk.page_content}"
         
-        # Generar resumen optimizado para la búsqueda usando multi representation
-        try:
-            summary_text = generate_summary(full_text)
-        except Exception as e:
-            print(f"Error al generar resumen para el chunk: {e}")
-            summary_text = full_text  # fallback a contenido completo si falla el resumen
+        # Asignar el full_text al campo "text", que se usará para embeddings y búsquedas.
+        # Nota: Si se quisiera optimizar el resumen, se podría usar:
+        # try:
+        #     optimized_text = generate_summary(full_text)
+        # except Exception as e:
+        #     print(f"Error al generar resumen para el chunk: {e}")
+        #     optimized_text = full_text
+        # chunk.metadata["text"] = optimized_text
+        chunk.metadata["text"] = full_text
         
-        # Asignar el resumen para la búsqueda y conservar el contexto completo para la respuesta
-        chunk.metadata["full_text"] = full_text
-        chunk.metadata["text"] = summary_text
-        # Actualizar el contenido de la página para que, al mostrar el contexto, se vea el texto completo
+        # Actualizar el contenido del chunk para que se muestre siempre el contexto completo
         chunk.page_content = full_text
     
-    # Crear vectores con IDs personalizados
+    # Preparar los vectores con IDs personalizados utilizando únicamente el campo "text"
     vectors_with_ids = []
-    
-    # Obtener embeddings para todos los chunks usando la representación resumen
     texts = [chunk.metadata["text"] for chunk in chunks]
     embeddings = embedding_function.embed_documents(texts)
     
-    # Crear vectores con IDs personalizados
     for i, chunk in enumerate(chunks):
         vectors_with_ids.append({
             "id": chunk.metadata["id"],
@@ -208,16 +225,15 @@ def add_to_pinecone(chunks: list[Document], index_name: str, pc: Pinecone):
             "metadata": chunk.metadata
         })
     
-    # Insertar directamente en el índice de Pinecone
+    # Insertar los vectores en el índice de Pinecone en lotes
     index = pc.Index(index_name)
-    
-    # Insertar en lotes para manejar grandes cantidades de datos
     batch_size = 100
     for i in range(0, len(vectors_with_ids), batch_size):
         batch = vectors_with_ids[i:i+batch_size]
         index.upsert(vectors=batch)
     
-    print(f"Documentos añadidos a Pinecone exitosamente")
+    print("Documentos añadidos a Pinecone exitosamente")
+
 
 def ensure_index_exists(pc: Pinecone, index_name: str):
     """Asegura que el índice existe, si no, lo crea"""
