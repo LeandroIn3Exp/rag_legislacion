@@ -11,10 +11,12 @@ Contexto:
 Pregunta: {question}
 
 Instrucciones:
-1. Si encontraste información relevante en los documentos legales proporcionados, responde utilizando esa información y cita la fuente específica (nombre del documento).
+1. Si encontraste información relevante en los documentos legales proporcionados, responde utilizando esa información y cita la fuente específica 
+   (nombre del documento y su numero de pagina), asi como todas las fuentes de las que tomes referencia si es que tomas mas de un documento. 
 2. Si la pregunta hace referencia a artículos o secciones específicas de la ley y no has encontrado el contenido exacto, indícalo claramente.
 3. Si no hay información en el contexto que responda directamente a la pregunta, pero puedes proporcionar información general sobre el tema legal, hazlo aclarando que es información general.
 4. Si la pregunta no está relacionada con temas legales o está fuera del ámbito de la legislación ecuatoriana, proporciona una respuesta general basada en tu conocimiento.
+                                             
 
 Respuesta:
 """)
