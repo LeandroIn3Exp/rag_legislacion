@@ -5,6 +5,24 @@ from src.utils.chains import create_conversation_chain
 from src.htmlTemplates import css, bot_template, user_template
 from src.config import DOCUMENT_TYPES, MEMORY_K
 import os
+
+def get_documents():
+    """
+    Escanea el directorio "data" y agrupa los documentos PDF por carpeta.
+    Retorna un diccionario donde la clave es el nombre de la carpeta
+    y el valor es la lista de archivos PDF que contiene.
+    """
+    docs = {}
+    base_dir = "data"
+    if os.path.exists(base_dir):
+        for folder in os.listdir(base_dir):
+            folder_path = os.path.join(base_dir, folder)
+            if os.path.isdir(folder_path):
+                # Listamos los archivos que terminan en .pdf (sin importar mayúsculas)
+                pdf_files = [f for f in os.listdir(folder_path) if f.lower().endswith(".pdf")]
+                docs[folder] = pdf_files
+    return docs
+
 def setup():
     st.set_page_config(page_title="LegisChat", page_icon="⚖️")
     st.write(css, unsafe_allow_html=True)
@@ -60,8 +78,6 @@ def handle_question(question):
     
     # Mostrar fuentes utilizadas
     st.subheader("📚 Fuentes utilizadas:")
-    import os
-
     for idx, fuente in enumerate(response_data["context"]):
         with st.expander(f"Fuente {idx + 1}: {fuente.metadata['source']}"):
             # Mostrar el contenido del chunk
@@ -82,29 +98,37 @@ def handle_question(question):
             else:
                 st.warning("Archivo no encontrado")
 
-
-
-
 def build_sidebar():
     with st.sidebar:
         st.title("Filtros de búsqueda")
-        st.caption("Selecciona las fuentes legales para tu consulta:")
+        st.caption("Selecciona los documentos legales para tu consulta:")
         
-        # Widget de selección múltiple con opción "todos"
-        selected = st.multiselect(
-            "Buscar en:",
-            options=["todos"] + [k for k in DOCUMENT_TYPES if k != "todos"],
-            default=["todos"],
-            format_func=lambda x: DOCUMENT_TYPES.get(x, x)
-        )
+        # Checkbox para seleccionar TODOS los documentos
+        select_all = st.checkbox("Seleccionar todos los documentos", value=True)
         
-        # Manejar selección de "todos"
-        if "todos" in selected:
+        selected_docs = []
+        if not select_all:
+            docs = get_documents()
+            # Por cada carpeta, se muestra un expander con un multiselect de los documentos que contiene
+            for folder, files in docs.items():
+                with st.expander(f"Documentos en {folder}", expanded=True):
+                    # Permite seleccionar uno, varios o todos los documentos dentro de la carpeta
+                    selected = st.multiselect(
+                        "Selecciona documentos:",
+                        options=files,
+                        default=files  # Puedes cambiar el default a [] si prefieres que no se seleccione ninguno por defecto
+                    )
+                    # Construir la ruta completa para cada documento seleccionado y normalizarla a barras inclinadas
+                    for doc in selected:
+                        full_path = os.path.join("data", folder, doc)
+                        full_path = full_path.replace("\\", "/")
+                        selected_docs.append(full_path)
+        
+        # Si se selecciona "todos" o no se eligió ningún documento, se mantiene la opción "todos"
+        if select_all or not selected_docs:
             st.session_state.selected_sources = ["todos"]
-        elif selected:
-            st.session_state.selected_sources = selected
         else:
-            st.session_state.selected_sources = ["todos"]
+            st.session_state.selected_sources = selected_docs
 
 def main():
     setup()
