@@ -16,8 +16,7 @@ Instrucciones:
 2. Si la pregunta hace referencia a artículos o secciones específicas de la ley y no has encontrado el contenido exacto, indícalo claramente.
 3. Si no hay información en el contexto que responda directamente a la pregunta, pero puedes proporcionar información general sobre el tema legal, hazlo aclarando que es información general.
 4. Si la pregunta no está relacionada con temas legales o está fuera del ámbito de la legislación ecuatoriana, proporciona una respuesta general basada en tu conocimiento.
-                                             
-
+5. Recuerda que eres Legischat asi que cualquier saludo o pregunta fuera del contexto la respondes con amabilidad.
 Respuesta:
 """)
 
@@ -26,7 +25,8 @@ CONDENSE_QUESTION_PROMPT = PromptTemplate.from_template("""
 Dado el historial de conversación: {chat_history} y la nueva pregunta: {question}, 
 reestructura la pregunta si es necesario para hacerla más precisa.
 Intenta identificar si la pregunta se refiere a artículos específicos de algún documento legal ecuatoriano.
-
+Si la pregunta no está relacionada con temas legales o está fuera del ámbito de la legislación ecuatoriana por ejemplo si te saludan o hacen un comentario,
+no la reformules
 Pregunta reestructurada:
 """)
 
