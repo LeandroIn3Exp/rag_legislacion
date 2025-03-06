@@ -4,7 +4,7 @@ from src.populate_database import load_pinecone
 from src.utils.chains import create_conversation_chain
 from src.htmlTemplates import css, bot_template, user_template
 from src.config import DOCUMENT_TYPES, MEMORY_K
-
+import os
 def setup():
     st.set_page_config(page_title="LegisChat", page_icon="⚖️")
     st.write(css, unsafe_allow_html=True)
@@ -60,9 +60,30 @@ def handle_question(question):
     
     # Mostrar fuentes utilizadas
     st.subheader("📚 Fuentes utilizadas:")
+    import os
+
     for idx, fuente in enumerate(response_data["context"]):
         with st.expander(f"Fuente {idx + 1}: {fuente.metadata['source']}"):
-            st.write(fuente.page_content)
+            # Mostrar el contenido del chunk
+            st.markdown(fuente.page_content)
+            
+            # Mostrar el botón de descarga al final
+            file_path = fuente.metadata.get("file_path")
+            if os.path.exists(file_path):
+                with open(file_path, "rb") as pdf_file:
+                    pdf_bytes = pdf_file.read()
+                st.download_button(
+                    label="Descargar PDF",
+                    data=pdf_bytes,
+                    file_name=fuente.metadata.get("original_filename", "documento.pdf"),
+                    mime="application/pdf",
+                    key=f"download_{fuente.metadata.get('id')}"
+                )
+            else:
+                st.warning("Archivo no encontrado")
+
+
+
 
 def build_sidebar():
     with st.sidebar:

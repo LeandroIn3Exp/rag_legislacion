@@ -209,6 +209,9 @@ def add_to_pinecone(chunks: list, index_name: str, pc):
         #     optimized_text = full_text
         # chunk.metadata["text"] = optimized_text
         chunk.metadata["text"] = full_text
+
+        # Aseguramos que la ruta use forward slashes
+        chunk.metadata["file_path"] = chunk.metadata.get("source", "").replace("\\", "/")
         
         # Actualizar el contenido del chunk para que se muestre siempre el contexto completo
         chunk.page_content = full_text
