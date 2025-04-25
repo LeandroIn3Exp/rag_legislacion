@@ -22,51 +22,53 @@ from langchain_openai.embeddings import OpenAIEmbeddings
 load_dotenv()
 
 # Definición de directorios
+# Configuración de directorios
 ROOT_DATA_PATH = "data"
-DOCUMENT_TYPES = {
-    "01_constitucion": "constitucion",
-    "02_convenios_internacionales": "convenio_internacional",
-    "03_leyes": "ley",
-    "04_codigos": "codigo"
-}
+DOCUMENT_DIRECTORY = "01_ISO_9001_2015"  # Solo un directorio ahora
+DOCUMENT_TYPE = "iso_9001"  # Tipo único para estos documentos
 
 def main():
-    # Verificar si se debe limpiar la base de datos (usando el flag --reset).
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--reset", action="store_true", help="Reset the database.")
-    args = parser.parse_args()
-    
-    # Inicializar Pinecone con la nueva API
-    pc = Pinecone(
-        api_key=os.getenv("PINECONE_API_KEY")
-    )
-    
+    # Inicializar Pinecone
+    pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
     index_name = os.getenv("PINECONE_INDEX_NAME")
     
-    # Si se solicita reiniciar la base de datos
-    if args.reset:
+    # Manejar el flag --reset
+    if "--reset" in os.sys.argv:
         clear_database(pc, index_name)
 
-    # Verificar la existencia del índice
+    # Verificar/crear índice
     ensure_index_exists(pc, index_name)
     
-    # Rastrear archivos ya procesados
-    existing_files = get_existing_files(pc, index_name) if not args.reset else set()
-    
-    # Cargar documentos de cada directorio
-    new_documents = []
-    for subdir, doc_type in DOCUMENT_TYPES.items():
-        dir_path = os.path.join(ROOT_DATA_PATH, subdir)
-        if os.path.exists(dir_path):
-            documents = load_new_documents(dir_path, doc_type, existing_files)
-            new_documents.extend(documents)
+    # Cargar documentos
+    dir_path = os.path.join(ROOT_DATA_PATH, DOCUMENT_DIRECTORY)
+    if not os.path.exists(dir_path):
+        print(f"No se encontró el directorio {dir_path}")
+        return
 
-    # Procesar y almacenar documentos nuevos
-    if new_documents:
-        chunks = split_documents(new_documents)
-        add_to_pinecone(chunks, index_name, pc)
-    else:
-        print("No se encontraron nuevos documentos para procesar.")
+    documents = load_documents(dir_path)
+    if not documents:
+        print("No se encontraron documentos nuevos para procesar")
+        return
+
+    # Procesar y almacenar documentos
+    chunks = split_documents(documents)
+    add_to_pinecone(chunks, index_name, pc)
+
+def load_documents(directory_path):
+    """Carga todos los documentos PDF del directorio especificado"""
+    print(f"Cargando documentos de {directory_path}")
+    document_loader = PyPDFDirectoryLoader(directory_path)
+    documents = document_loader.load()
+    
+    # Añadir metadatos comunes a todos los documentos
+    for doc in documents:
+        source_path = doc.metadata.get("source", "")
+        doc.metadata["filename"] = os.path.basename(source_path)
+        doc.metadata["doc_type"] = DOCUMENT_TYPE
+        doc.metadata["file_path"] = source_path.replace("\\", "/")
+    
+    print(f"Se encontraron {len(documents)} documentos")
+    return documents
 
 def to_ascii_id(text):
     """
