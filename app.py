@@ -24,9 +24,9 @@ def get_documents():
     return docs
 
 def setup():
-    st.set_page_config(page_title="LegisChat", page_icon="⚖️")
+    st.set_page_config(page_title="ISOChat", page_icon="⚖️")
     st.write(css, unsafe_allow_html=True)
-    st.header("Chat con Documentos Legales ⚖️")
+    st.header("Chat con normas ISO ⚖️")
     
     # Cargar vectorstore una sola vez
     if "vectorstore" not in st.session_state:
