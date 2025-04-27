@@ -139,11 +139,28 @@ def main():
     
     # Sección del prompt dentro de un formulario para que la consulta se ejecute solo al enviar
     with st.form(key="consulta_form", clear_on_submit=True):
-        user_question = st.text_input(
-            "Haz tu pregunta legal:",
+        # Usamos text_area en lugar de text_input para permitir expansión
+        user_question = st.text_area(
+            "Menciona el caso y respuestas a calificar:",
             key="user_input",
-            help="Presiona Enter o haz click en 'Enviar' para enviar tu pregunta"
+            help="Presiona Enter o haz click en 'Enviar' para enviar tu pregunta",
+            height=100,  # Altura inicial
+            max_chars=None,  # Sin límite de caracteres
+            # Estilo CSS para limitar la altura máxima y añadir scroll
+            label_visibility="visible"
         )
+        
+        # Añadir CSS para controlar el tamaño del text_area
+        st.markdown("""
+        <style>
+            .stTextArea textarea {
+                min-height: 100px;
+                max-height: 600px;
+                overflow-y: auto !important;
+            }
+        </style>
+        """, unsafe_allow_html=True)
+        
         submit_button = st.form_submit_button("Enviar")
     
     if submit_button and user_question:

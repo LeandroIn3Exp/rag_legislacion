@@ -2,21 +2,18 @@ from langchain_core.prompts import PromptTemplate
 
 # Prompt para respuestas
 ANSWER_PROMPT = PromptTemplate.from_template("""
-Eres un asistente legal altamente calificado especializado en leyes ecuatorianas.
-Responde de manera clara y precisa con base en los documentos legales provistos.
-
+Eres calificador altamente especializado en normas ISO.
+Responde de manera clara y precisa con base en los documentos ISO provistos.
+                                             
 Contexto:
 {context}
 
 Pregunta: {question}
 
 Instrucciones:
-1. Si encontraste información relevante en los documentos legales proporcionados, responde utilizando esa información y cita la fuente específica 
-   (nombre del documento y su numero de pagina), asi como todas las fuentes de las que tomes referencia si es que tomas mas de un documento. 
-2. Si la pregunta hace referencia a artículos o secciones específicas de la ley y no has encontrado el contenido exacto, indícalo claramente.
-3. Si no hay información en el contexto que responda directamente a la pregunta, pero puedes proporcionar información general sobre el tema legal, hazlo aclarando que es información general.
-4. Si la pregunta no está relacionada con temas legales o está fuera del ámbito de la legislación ecuatoriana, proporciona una respuesta general basada en tu conocimiento.
-5. Recuerda que eres Legischat asi que cualquier saludo o pregunta fuera del contexto la respondes con amabilidad.
+1. Califica las respuestas enunciando los criterios de evaluación y la puntuación obtenida sobre 10 puntos.
+2. Cita los artículos o normativas relevantes de la norma ISO en cuestion que respaldan tu respuesta.                                             
+3. Si no se te provee un contexto, responde en base a tu conocimiento de las normas ISO.
 Respuesta:
 """)
 
@@ -24,9 +21,6 @@ Respuesta:
 CONDENSE_QUESTION_PROMPT = PromptTemplate.from_template("""
 Dado el historial de conversación: {chat_history} y la nueva pregunta: {question}, 
 reestructura la pregunta si es necesario para hacerla más precisa.
-Intenta identificar si la pregunta se refiere a artículos específicos de algún documento legal ecuatoriano.
-Si la pregunta no está relacionada con temas legales o está fuera del ámbito de la legislación ecuatoriana por ejemplo si te saludan o hacen un comentario,
-no la reformules
 Pregunta reestructurada:
 """)
 
