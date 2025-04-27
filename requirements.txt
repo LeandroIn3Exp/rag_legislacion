@@ -1,6 +1,6 @@
 streamlit
 langchain-pinecone
-langchain-experimental
+langchain_experimental
 langchain-openai
 langchain-core
 langchain
