@@ -15,7 +15,7 @@ DOCUMENT_TYPES = {
 
 # Configuración de OpenAI
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-MODEL_NAME = "gpt-4"
+MODEL_NAME = "o4-mini-2025-04-16"
 TEMPERATURE = 0
 
 # Configuración de Pinecone

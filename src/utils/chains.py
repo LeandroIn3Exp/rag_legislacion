@@ -26,7 +26,7 @@ def create_conversation_chain(vectorstore, selected_sources):
     # Modelo de lenguaje
     llm = ChatOpenAI(
         model_name=MODEL_NAME,
-        temperature=TEMPERATURE,
+        # temperature=TEMPERATURE,
         openai_api_key=OPENAI_API_KEY
     )
     
