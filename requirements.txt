@@ -4,7 +4,7 @@ langchain_experimental
 langchain-openai
 langchain-core
 langchain
-pinecone-client
+pinecone
 python-dotenv
 unidecode
 spacy
