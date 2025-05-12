@@ -22,10 +22,21 @@ from langchain_openai.embeddings import OpenAIEmbeddings
 load_dotenv()
 
 # Definición de directorios
-# Configuración de directorios
 ROOT_DATA_PATH = "data"
-DOCUMENT_DIRECTORY = "01_ISO_9001_2015"  # Solo un directorio ahora
-DOCUMENT_TYPE = "iso_9001"  # Tipo único para estos documentos
+
+def get_document_directories():
+    """Obtiene la lista de directorios dentro de data"""
+    directories = []
+    for item in os.listdir(ROOT_DATA_PATH):
+        full_path = os.path.join(ROOT_DATA_PATH, item)
+        if os.path.isdir(full_path):
+            # Extraer el tipo de documento del nombre del directorio
+            doc_type = item.lower().replace("_", " ")
+            directories.append({
+                "path": full_path,
+                "doc_type": doc_type
+            })
+    return directories
 
 def main():
     # Inicializar Pinecone
@@ -39,22 +50,36 @@ def main():
     # Verificar/crear índice
     ensure_index_exists(pc, index_name)
     
-    # Cargar documentos
-    dir_path = os.path.join(ROOT_DATA_PATH, DOCUMENT_DIRECTORY)
-    if not os.path.exists(dir_path):
-        print(f"No se encontró el directorio {dir_path}")
+    # Obtener todos los directorios de documentos
+    document_directories = get_document_directories()
+    if not document_directories:
+        print("No se encontraron directorios de documentos en data/")
         return
 
-    documents = load_documents(dir_path)
-    if not documents:
+    # Procesar cada directorio
+    all_documents = []
+    for dir_info in document_directories:
+        dir_path = dir_info["path"]
+        doc_type = dir_info["doc_type"]
+        
+        if not os.path.exists(dir_path):
+            print(f"No se encontró el directorio {dir_path}")
+            continue
+
+        documents = load_documents(dir_path, doc_type)
+        if documents:
+            all_documents.extend(documents)
+            print(f"Se procesaron {len(documents)} documentos de {dir_path}")
+
+    if not all_documents:
         print("No se encontraron documentos nuevos para procesar")
         return
 
     # Procesar y almacenar documentos
-    chunks = split_documents(documents)
+    chunks = split_documents(all_documents)
     add_to_pinecone(chunks, index_name, pc)
 
-def load_documents(directory_path):
+def load_documents(directory_path, doc_type):
     """Carga todos los documentos PDF del directorio especificado"""
     print(f"Cargando documentos de {directory_path}")
     document_loader = PyPDFDirectoryLoader(directory_path)
@@ -64,7 +89,7 @@ def load_documents(directory_path):
     for doc in documents:
         source_path = doc.metadata.get("source", "")
         doc.metadata["filename"] = os.path.basename(source_path)
-        doc.metadata["doc_type"] = DOCUMENT_TYPE
+        doc.metadata["doc_type"] = doc_type
         doc.metadata["file_path"] = source_path.replace("\\", "/")
     
     print(f"Se encontraron {len(documents)} documentos")
